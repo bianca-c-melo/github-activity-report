@@ -9,7 +9,6 @@ A TypeScript/JavaScript library to generate detailed GitHub activity reports acr
 - Get detailed statistics per repository and per user
 - View a formatted text summary or access the raw data
 - Supports localization in English and Portuguese
-- Use with Windmill for private key storage or provide your own
 
 ## Installation
 
@@ -17,10 +16,10 @@ A TypeScript/JavaScript library to generate detailed GitHub activity reports acr
 npm install github-activity-report
 ```
 
-Or with Yarn:
+Or with pnpm:
 
 ```bash
-yarn add github-activity-report
+pnpm add github-activity-report
 ```
 
 ## Usage
