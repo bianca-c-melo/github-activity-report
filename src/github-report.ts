@@ -1,12 +1,11 @@
-import { App } from "octokit";
-import { 
+import { App } from "octokit"
+import {
   GitHubActivityReport,
-  InstallationResult,
-  UserStatsMap 
-} from "./types";
-import { Config } from "./config";
-import { generateReport } from "./report";
-import { getLocalization } from "./localization";
+  UserStatsMap
+} from "./types"
+import { Config } from "./config"
+import { generateReport } from "./report"
+import { getLocalization } from "./localization"
 
 /**
  * Generate a GitHub activity report for all repositories
@@ -18,71 +17,48 @@ import { getLocalization } from "./localization";
 export async function generateGitStats(
   config: Config
 ): Promise<GitHubActivityReport> {
-  const daysToLookBack = config.daysToLookBack || 7;
-  const t = getLocalization(config.language || "en");
-  
+  const daysToLookBack = config.daysToLookBack || 7
+  const t = getLocalization(config.language || "en")
+  const cutoffDate = new Date()
+  cutoffDate.setDate(cutoffDate.getDate() - daysToLookBack)
+  const since = cutoffDate.toISOString()
+  const sinceDateStr = cutoffDate.toISOString().slice(0, 10)
+
   const app = new App({
     appId: config.appId,
     privateKey: config.privateKey,
     webhooks: config.webhookSecret ? { secret: config.webhookSecret } : undefined,
-  });
+  })
 
   try {
-    const installationsResponse = await app.octokit.request('GET /app/installations');
-    const installations = installationsResponse.data;
-    console.log(t.installationsFound(installations.length));
+    const installationsResponse = await app.octokit.request('GET /app/installations')
+    const installations = installationsResponse.data
+    console.log(t.installationsFound(installations.length))
 
-    const results: InstallationResult[] = [];
-
-    for (const installation of installations) {
+    const installationPromises = installations.map(async (installation) => {
       try {
-        const octokit = await app.getInstallationOctokit(installation.id);
-        
+        const octokit = await app.getInstallationOctokit(installation.id)
+
         const { data: { repositories: repos } } = await octokit.request('GET /installation/repositories', {
           per_page: 100
-        });
-        
-        console.log(t.installationRepos(installation.id, repos.length));
-        const cutoffDate = new Date();
-        cutoffDate.setDate(cutoffDate.getDate() - daysToLookBack);
-        const since = cutoffDate.toISOString();
-      
-        const userStats: UserStatsMap = {};
-      
-        for (const repo of repos) {
-          try {
-            const processedCommits = new Set<string>();
-            const ownerLogin = repo.owner.login;
-            const repoName = repo.name;
+        })
 
-            const branchesQuery = `
-              query($owner: String!, $repo: String!) {
+        console.log(t.installationRepos(installation.id, repos.length))
+
+        const repoPromises = repos.map(async (repo) => {
+          const userStats: UserStatsMap = {}
+
+          try {
+            const ownerLogin = repo.owner.login
+            const repoName = repo.name
+            const processedCommits = new Set<string>()
+
+            const combinedQuery = `
+              query($owner: String!, $repo: String!, $since: GitTimestamp!) {
                 repository(owner: $owner, name: $repo) {
                   refs(refPrefix: "refs/heads/", first: 100) {
                     nodes {
                       name
-                      target {
-                        oid
-                      }
-                    }
-                  }
-                }
-              }
-            `;
-            
-            const branchesResult = await octokit.graphql(branchesQuery, {
-              owner: ownerLogin,
-              repo: repoName
-            });
-            
-            const branches = (branchesResult as { repository: { refs: { nodes: any[] } } }).repository.refs.nodes || [];
-            console.log(t.repoBranches(repoName, branches.length));
-            
-            for (const branch of branches) {
-              const commitsQuery = `
-                query($owner: String!, $repo: String!, $branchName: String!, $since: GitTimestamp!) {
-                  repository(owner: $owner, name: $repo) {
-                    ref(qualifiedName: $branchName) {
                       target {
                         ... on Commit {
                           history(since: $since, first: 100) {
@@ -103,51 +79,49 @@ export async function generateGitStats(
                     }
                   }
                 }
-              `;
-              
-              const commitsResult = await octokit.graphql(commitsQuery, {
-                owner: ownerLogin,
-                repo: repoName,
-                branchName: `refs/heads/${branch.name}`,
-                since: since
-              });
-              
-              const branchCommits = (commitsResult as any).repository.ref?.target?.history?.nodes || [];
-              console.log(t.branchCommits(branch.name, branchCommits.length));
-              
+              }
+            `
+
+            const combinedResult = await octokit.graphql(combinedQuery, {
+              owner: ownerLogin,
+              repo: repoName,
+              since: since
+            })
+
+            const branches = (combinedResult as any).repository.refs.nodes || []
+            console.log(t.repoBranches(repoName, branches.length))
+
+            for (const branch of branches) {
+              const branchCommits = branch.target?.history?.nodes || []
+
               for (const commit of branchCommits) {
                 if (!processedCommits.has(commit.oid)) {
-                  processedCommits.add(commit.oid);
-                  const authorLogin = commit.author.user?.login || 
-                                     commit.author.name || 
-                                     commit.author.email || 
-                                     "Unknown";
+                  processedCommits.add(commit.oid)
+                  const authorLogin = commit.author.user?.login ||
+                    commit.author.name ||
+                    commit.author.email ||
+                    "Unknown"
+
                   if (!userStats[authorLogin]) {
                     userStats[authorLogin] = {
-                      commitsByRepo: {},
+                      commitsByRepo: { [repoName]: 1 },
                       pullRequestsByRepo: {},
-                      totalCommits: 0,
+                      totalCommits: 1,
                       totalPRsOpened: 0,
                       totalPRsClosed: 0
-                    };
+                    }
+                  } else {
+                    userStats[authorLogin].totalCommits++
+                    userStats[authorLogin].commitsByRepo[repoName] =
+                      (userStats[authorLogin].commitsByRepo[repoName] || 0) + 1
                   }
-                  
-                  if (!userStats[authorLogin].commitsByRepo[repoName]) {
-                    userStats[authorLogin].commitsByRepo[repoName] = 0;
-                  }
-                  userStats[authorLogin].commitsByRepo[repoName]++;
-                  userStats[authorLogin].totalCommits++;
                 }
               }
             }
-            
-            console.log(t.repoCommits(repoName, processedCommits.size));
-            
-            const sinceDateStr = cutoffDate.toISOString().slice(0, 10);
+
             const prQuery = `
               query($searchQuery: String!) {
                 search(query: $searchQuery, type: ISSUE_ADVANCED, first: 100) {
-                  issueCount
                   edges {
                     node {
                       ... on PullRequest {
@@ -157,33 +131,21 @@ export async function generateGitStats(
                         }
                         createdAt
                         closedAt
-                        repository {
-                          name
-                          owner {
-                            login
-                          }
-                        }
                       }
                     }
                   }
                 }
               }
-            `;
-            
-            const prSearchQuery = `repo:${ownerLogin}/${repoName} is:pr updated:>=${sinceDateStr}`;
-            console.log(t.searchingPRs(prSearchQuery));
-            
-            const prResult = await octokit.graphql(prQuery, {
-              searchQuery: prSearchQuery
-            });
-            
-            const pullRequests = (prResult as any).search.edges.map((edge: any) => edge.node);
-            console.log(t.foundPRs(pullRequests.length, repoName));
-            
+            `
+
+            const prSearchQuery = `repo:${ownerLogin}/${repoName} is:pr updated:>=${sinceDateStr}`
+            const prResult = await octokit.graphql(prQuery, { searchQuery: prSearchQuery })
+            const pullRequests = (prResult as any).search.edges.map((edge: any) => edge.node)
+
             for (const pr of pullRequests) {
-              if (pr && pr.author) {
-                const authorLogin = pr.author.login || "Unknown";
-                
+              if (pr?.author) {
+                const authorLogin = pr.author.login || "Unknown"
+
                 if (!userStats[authorLogin]) {
                   userStats[authorLogin] = {
                     commitsByRepo: {},
@@ -191,116 +153,123 @@ export async function generateGitStats(
                     totalCommits: 0,
                     totalPRsOpened: 0,
                     totalPRsClosed: 0
-                  };
+                  }
                 }
-                
+
                 if (!userStats[authorLogin].pullRequestsByRepo[repoName]) {
                   userStats[authorLogin].pullRequestsByRepo[repoName] = {
                     opened: 0,
                     closed: 0
-                  };
+                  }
                 }
-                
-                const createdAt = new Date(pr.createdAt);
+
+                const createdAt = new Date(pr.createdAt)
                 if (createdAt >= cutoffDate) {
-                  userStats[authorLogin].pullRequestsByRepo[repoName].opened++;
-                  userStats[authorLogin].totalPRsOpened++;
-                  console.log(t.prCounted(pr.number, authorLogin, 'opened'));
+                  userStats[authorLogin].pullRequestsByRepo[repoName].opened++
+                  userStats[authorLogin].totalPRsOpened++
                 }
-                
+
                 if (pr.closedAt) {
-                  const closedAt = new Date(pr.closedAt);
+                  const closedAt = new Date(pr.closedAt)
                   if (closedAt >= cutoffDate) {
-                    userStats[authorLogin].pullRequestsByRepo[repoName].closed++;
-                    userStats[authorLogin].totalPRsClosed++;
-                    console.log(t.prCounted(pr.number, authorLogin, 'closed'));
+                    userStats[authorLogin].pullRequestsByRepo[repoName].closed++
+                    userStats[authorLogin].totalPRsClosed++
                   }
                 }
               }
             }
-            
+
+            return { repoName, success: true, userStats }
           } catch (repoError: any) {
-            console.log(t.repoError(repo.full_name, repoError.message));
+            console.log(t.repoError(repo.full_name, repoError.message))
+            return { repoName: repo.full_name, success: false, error: repoError.message, userStats }
+          }
+        })
+
+        const repoResults = await Promise.all(repoPromises)
+
+        const mergedUserStats: UserStatsMap = {}
+
+        for (const result of repoResults) {
+          if (result.success && result.userStats) {
+            for (const [userName, stats] of Object.entries(result.userStats)) {
+              if (!mergedUserStats[userName]) {
+                mergedUserStats[userName] = {
+                  commitsByRepo: { ...stats.commitsByRepo },
+                  pullRequestsByRepo: { ...stats.pullRequestsByRepo },
+                  totalCommits: stats.totalCommits,
+                  totalPRsOpened: stats.totalPRsOpened,
+                  totalPRsClosed: stats.totalPRsClosed
+                }
+              } else {
+                mergedUserStats[userName].totalCommits += stats.totalCommits
+                mergedUserStats[userName].totalPRsOpened += stats.totalPRsOpened
+                mergedUserStats[userName].totalPRsClosed += stats.totalPRsClosed
+
+                for (const [repoName, commitCount] of Object.entries(stats.commitsByRepo)) {
+                  mergedUserStats[userName].commitsByRepo[repoName] =
+                    (mergedUserStats[userName].commitsByRepo[repoName] || 0) + commitCount
+                }
+
+                for (const [repoName, prStats] of Object.entries(stats.pullRequestsByRepo)) {
+                  if (!mergedUserStats[userName].pullRequestsByRepo[repoName]) {
+                    mergedUserStats[userName].pullRequestsByRepo[repoName] = { ...prStats }
+                  } else {
+                    mergedUserStats[userName].pullRequestsByRepo[repoName].opened += prStats.opened
+                    mergedUserStats[userName].pullRequestsByRepo[repoName].closed += prStats.closed
+                  }
+                }
+              }
+            }
           }
         }
-        
+
         const installationStats = {
           id: installation.id,
           account: installation.account && 'login' in installation.account ? installation.account.login : "Unknown",
           account_type: installation.account && 'type' in installation.account ? installation.account.type : "Unknown",
           period_days: daysToLookBack,
-          userStats: [] as {
-            name: string;
-            totalCommits: number;
-            totalPRsOpened: number;
-            totalPRsClosed: number;
-            repoContributions: {
-              repoName: string;
-              commits: number;
-              prsOpened: number;
-              prsClosed: number;
-            }[];
-          }[]
-        };
-        
-        for (const [userName, stats] of Object.entries(userStats)) {
-          const userStat: {
-            name: string;
-            totalCommits: number;
-            totalPRsOpened: number;
-            totalPRsClosed: number;
-            repoContributions: {
-              repoName: string;
-              commits: number;
-              prsOpened: number;
-              prsClosed: number;
-            }[];
-          } = {
-            name: userName,
-            totalCommits: stats.totalCommits,
-            totalPRsOpened: stats.totalPRsOpened,
-            totalPRsClosed: stats.totalPRsClosed,
-            repoContributions: []
-          };
+          userStats: Object.entries(mergedUserStats).map(([userName, stats]) => {
+            const repoSet = new Set([
+              ...Object.keys(stats.commitsByRepo),
+              ...Object.keys(stats.pullRequestsByRepo)
+            ])
 
-          const repoSet = new Set([
-            ...Object.keys(stats.commitsByRepo),
-            ...Object.keys(stats.pullRequestsByRepo)
-          ]);
-          
-          for (const repoName of repoSet) {
-            const repoStat = {
-              repoName: repoName,
-              commits: stats.commitsByRepo[repoName] || 0,
-              prsOpened: (stats.pullRequestsByRepo[repoName] && stats.pullRequestsByRepo[repoName].opened) || 0,
-              prsClosed: (stats.pullRequestsByRepo[repoName] && stats.pullRequestsByRepo[repoName].closed) || 0
-            };
-            
-            userStat.repoContributions.push(repoStat);
-          }
-          
-          installationStats.userStats.push(userStat);
+            return {
+              name: userName,
+              totalCommits: stats.totalCommits,
+              totalPRsOpened: stats.totalPRsOpened,
+              totalPRsClosed: stats.totalPRsClosed,
+              repoContributions: Array.from(repoSet).map(repoName => ({
+                repoName,
+                commits: stats.commitsByRepo[repoName] || 0,
+                prsOpened: (stats.pullRequestsByRepo[repoName]?.opened || 0),
+                prsClosed: (stats.pullRequestsByRepo[repoName]?.closed || 0)
+              }))
+            }
+          })
         }
-        
-        results.push(installationStats);
+
+        return installationStats
       } catch (error: any) {
-        console.error(t.installationError(installation.id, error.message));
-        results.push({
+        console.error(t.installationError(installation.id, error.message))
+        return {
           id: installation.id,
           account: installation.account && 'login' in installation.account ? installation.account.login : "Unknown",
           error: error.message
-        });
+        }
       }
-    }
-    
-    const report = generateReport(results, t);
-    
+    })
+
+    const results = await Promise.all(installationPromises)
+    const report = generateReport(results, t)
+
     return {
       summary: report,
       detailed_results: results
-    };
+    }
   } catch (error: any) {
-    console.error(t.githubApiError(error.message));
-    throw error;
+    console.error(t.githubApiError(error.message))
+    throw error
   }
 }

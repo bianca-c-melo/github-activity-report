@@ -1,6 +1,6 @@
 {
   "name": "github-activity-report",
-  "version": "1.0.2",
+  "version": "1.0.5",
   "description": "A library to generate GitHub activity reports across repositories and users",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",

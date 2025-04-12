@@ -17,8 +17,10 @@ npm install github-activity-report
 ```
 
 Or with pnpm:
+Or with pnpm:
 
 ```bash
+pnpm add github-activity-report
 pnpm add github-activity-report
 ```
 
@@ -46,7 +48,6 @@ async function main() {
 
 main().catch(console.error);
 ```
-
 ## Configuration Options
 
 The `generateGitStats` function accepts these options:
