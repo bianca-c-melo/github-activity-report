@@ -10,27 +10,12 @@ A TypeScript/JavaScript library to generate detailed GitHub activity reports acr
 - View a formatted text summary or access the raw data
 - Supports localization in English and Portuguese
 
-## Installation
-
-```bash
-npm install github-activity-report
-```
-
-Or with pnpm:
-Or with pnpm:
-
-```bash
-pnpm add github-activity-report
-pnpm add github-activity-report
-```
 
 ## Usage
 
 ### Basic Usage
 
 ```typescript
-import { generateGitStats } from 'github-activity-report';
-
 async function main() {
   const report = await generateGitStats({
     appId: 123456,  // Your GitHub App ID
