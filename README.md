@@ -28,10 +28,10 @@ pnpm add github-activity-report
 ### Basic Usage
 
 ```typescript
-import { generateGitHubActivityReport } from 'github-activity-report';
+import { generateGitStats } from 'github-activity-report';
 
 async function main() {
-  const report = await generateGitHubActivityReport({
+  const report = await generateGitStats({
     appId: 123456,  // Your GitHub App ID
     privateKey: "-----BEGIN RSA PRIVATE KEY-----\n...",  // Your GitHub App private key
     daysToLookBack: 7,  // Optional, defaults to 7
