@@ -1,0 +1,31 @@
+# .gitignore
+
+# Node
+node_modules/
+dist/
+build/
+.env
+.env.local
+npm-debug.log*
+
+pnpm-lock.yaml
+
+# TypeScript
+*.tsbuildinfo
+
+# VSCode
+.vscode/
+
+# macOS
+.DS_Store
+
+# Test / coverage
+coverage/
+*.log
+
+# Optional: lock files (caso esteja usando só npm ou só yarn)
+# yarn.lock
+# package-lock.json
+
+# Cache
+.cache/
