@@ -1,16 +1,28 @@
 export const pt = {
-    installationFound: (n: number) => `Encontradas ${n} instalações`,
-    reposAccess: (id: number, n: number) => `Instalação ${id} tem acesso a ${n} repositórios`,
-    branchCount: (repo: string, n: number) => `Repositório ${repo} tem ${n} branches`,
-    commitsCount: (branch: string, n: number) => `Branch ${branch} tem ${n} commits no período`,
-    prSearch: (query: string) => `Buscando PRs com: ${query}`,
-    prFound: (repo: string, n: number) => `Encontrados ${n} PRs para ${repo}`,
-    prOpened: (n: number, author: string) => `PR #${n} por ${author} contabilizado como aberto`,
-    prClosed: (n: number, author: string) => `PR #${n} por ${author} contabilizado como fechado`,
-    reportStart: (acc: string, type: string, period: string) => `📊 Estatísticas para ${acc} (${type}) - Últimos ${period}:`,
-    reportUser: (name: string) => `👤 ${name}:`,
-    reportUserStats: (c: number, o: number, f: number) => `  Total: ${c} commits únicos, ${o} PRs abertos, ${f} PRs fechados`,
-    reportRepoStats: (repo: string, c: number, o: number, f: number) => `    - ${repo}: ${c} commits, ${o} PRs abertos, ${f} PRs fechados`,
-    reportNone: `  Nenhuma contribuição encontrada no período.`,
-    errorInstall: (acc: string, msg: string) => `⚠️ Instalação ${acc}: ${msg}`
-  };
+    installationsFound: (count: number) => `Encontradas ${count} instalações`,
+    installationRepos: (id: number, count: number) => `Instalação ${id} tem acesso a ${count} repositórios`,
+    repoBranches: (name: string, count: number) => `Repositório ${name} tem ${count} branches`,
+    branchCommits: (name: string, count: number) => `Branch ${name} tem ${count} commits no período`,
+    repoCommits: (name: string, count: number) => `Repo ${name}: ${count} commits únicos encontrados`,
+    searchingPRs: (query: string) => `Buscando PRs com: ${query}`,
+    foundPRs: (count: number, repo: string) => `Encontrados ${count} PRs para ${repo}`,
+    prCounted: (number: number, author: string, type: string) => `PR #${number} por ${author} contabilizado como ${type}`,
+    repoError: (fullName: string, message: string) => `Erro ao processar repositório ${fullName}: ${message}`,
+    installationError: (id: number, message: string) => `Erro ao processar instalação ${id}: ${message}`,
+    githubApiError: (message: string) => `Erro ao acessar a API do GitHub: ${message}`,
+    installationWarning: (account: string, error: string) => `⚠️ Instalação ${account}: ${error}`,
+    period: {
+        week: "semana",
+        month: "mês",
+        days: (count: number) => `${count} dias`
+    },
+    statsFor: (account: string, type: string, period: string) =>
+        `📊 Estatísticas para ${account} (${type}) - Últimos ${period}:`,
+    userStats: (name: string) => `\n👤 ${name}:`,
+    userTotal: (commits: number, opened: number, closed: number) =>
+        `  Total: ${commits} commits únicos, ${opened} PRs abertos, ${closed} PRs fechados`,
+    contributionsByRepo: `  Contribuições por repositório:`,
+    repoStats: (name: string, commits: number, opened: number, closed: number) =>
+        `    - ${name}: ${commits} commits, ${opened} PRs abertos, ${closed} PRs fechados`,
+    noContributions: `  Nenhuma contribuição encontrada no período.`
+};

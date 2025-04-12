@@ -1,109 +1,100 @@
-# 📊 GitHub Stats Reporter
+# GitHub Activity Report
 
-A modular library to fetch and generate GitHub contribution stats across installations and repositories, with multi-language support (🇺🇸 English & 🇧🇷 Portuguese).
+A TypeScript/JavaScript library to generate detailed GitHub activity reports across repositories and users for GitHub App installations.
 
-Uma biblioteca modular para buscar e gerar estatísticas de contribuição no GitHub entre instalações e repositórios, com suporte a múltiplos idiomas (🇧🇷 Português e 🇺🇸 Inglês).
+## Features
 
----
+- Generate reports for all repositories accessible by your GitHub App
+- Track commits, PRs opened, and PRs closed for each user
+- Get detailed statistics per repository and per user
+- View a formatted text summary or access the raw data
+- Supports localization in English and Portuguese
+- Use with Windmill for private key storage or provide your own
 
-## 🚀 Installation | Instalação
+## Installation
 
-\`\`\`bash
-npm install git-stats-lib
-\`\`\`
+```bash
+npm install github-activity-report
+```
 
----
+Or with Yarn:
 
-## 🛠️ Usage | Uso
+```bash
+yarn add github-activity-report
+```
 
-\`\`\`ts
-import { generateGitStats } from "git-stats-lib";
+## Usage
 
-const main = async () => {
-  const { summary } = await generateGitStats({
-    language: "pt",           // "pt" ou "en"
-    daysToLookBack: 30        // número de dias para analisar (default: 7)
+### Basic Usage
+
+```typescript
+import { generateGitHubActivityReport } from 'github-activity-report';
+
+async function main() {
+  const report = await generateGitHubActivityReport({
+    appId: 123456,  // Your GitHub App ID
+    privateKey: "-----BEGIN RSA PRIVATE KEY-----\n...",  // Your GitHub App private key
+    daysToLookBack: 7,  // Optional, defaults to 7
+    language: 'en'  // 'en' for English or 'pt' for Portuguese
   });
 
-  console.log(summary);
-};
+  // The formatted summary
+  console.log(report.summary);
 
-main();
-\`\`\`
+  // Access detailed data
+  console.log(report.detailed_results);
+}
 
----
+main().catch(console.error);
+```
 
-## 🌐 Language Support | Suporte a Idiomas
+### Using with Windmill
 
-| Language | Code | Output Example |
-|---------|------|----------------|
-| 🇺🇸 English | \`en\` | \`📊 Stats for my-org (Organization) - Last 7 days:\` |
-| 🇧🇷 Português | \`pt\` | \`📊 Estatísticas para my-org (Organização) - Últimos 7 dias:\` |
+If you're using Windmill for variable storage:
 
-You can customize the output language using the \`language\` config option.  
-Você pode customizar o idioma da saída usando a opção \`language\`.
+```typescript
+import { generateGitHubActivityReport, getGitHubPrivateKey } from 'github-activity-report';
 
----
+async function main() {
+  // Get the GitHub private key from Windmill
+  const privateKey = await getGitHubPrivateKey('u/username/github_private_key');
 
-## ⚙️ Configuration Options | Opções de Configuração
+  const report = await generateGitHubActivityReport({
+    appId: 123456,
+    privateKey: privateKey,
+    daysToLookBack: 30,
+    language: 'pt'  // Using Portuguese for this report
+  });
 
-| Option | Type | Default | Description |
-|--------|------|---------|-------------|
-| \`language\` | \`"en"\` \\| \`"pt"\` | \`"pt"\` | Language of the output |
-| \`daysToLookBack\` | \`number\` | \`7\` | Number of days to check contributions |
+  console.log(report.summary);
+}
 
----
+main().catch(console.error);
+```
 
-## 📁 Example Output | Exemplo de Saída
+## Configuration Options
 
-\`\`\`
-📊 Estatísticas para my-org (Organização) - Últimos 7 dias:
+The `generateGitHubActivityReport` function accepts these options:
 
-👤 Bia:
-  Total: 15 commits únicos, 3 PRs abertos, 2 PRs fechados
-    - my-repo: 10 commits, 2 PRs abertos, 1 PR fechado
-    - another-repo: 5 commits, 1 PR aberto, 1 PR fechado
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| appId | number | Yes | Your GitHub App ID |
+| privateKey | string | Yes | Your GitHub App's private key |
+| webhookSecret | string | No | Your GitHub App's webhook secret |
+| daysToLookBack | number | No | Number of days to look back for activity (default: 7) |
+| language | 'en' \| 'pt' | Yes | Language for the report ('en' for English, 'pt' for Portuguese) |
 
-👤 João:
-  Nenhuma contribuição encontrada no período.
-\`\`\`
+## Report Structure
 
----
+The report object contains:
 
-## 📦 Output Structure | Estrutura da Saída
+- `summary`: A formatted text summary of GitHub activity
+- `detailed_results`: Detailed data for each installation, including:
+  - Repository statistics
+  - User statistics
+  - Commit counts
+  - PRs opened and closed
 
-\`\`\`ts
-type GitStatsResult = {
-  summary: string; // Human-readable string (localized)
-  detailed_results: InstallationResult[]; // Structured raw data
-};
-\`\`\`
+## License
 
----
-
-## 📌 Coming Soon | Em breve
-
-- [ ] CSV / JSON export
-- [ ] GitHub Actions integration
-- [ ] Web dashboard (React)
-
----
-
-## 🤝 Contributing | Contribuindo
-
-Contributions are welcome!  
-Contribuições são bem-vindas!
-
-Feel free to open issues, send pull requests, or suggest improvements.  
-Sinta-se à vontade para abrir issues, enviar PRs ou sugerir melhorias.
-
----
-
-## 📜 License | Licença
-
-[MIT](./LICENSE)
-
----
-
-Feito com 💙 por devs que amam dados de contribuição.  
-Made with 💙 by devs who love contribution data.
+MIT

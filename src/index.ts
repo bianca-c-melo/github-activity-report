@@ -1,15 +1,12 @@
-import * as wmill from "windmill-client"
-import { App } from "octokit"
-import { Config, defaultConfig } from "./config"
-import { generateReport } from "./report"
-import { en } from "./localization/en"
-import { pt } from "./localization/pt"
+export * from './types';
+export * from './github-report';
+export * from './config';
+export * from './report';
+export * from './localization';
 
-export async function generateGitStats(userConfig: Config = {}) {
-  const config = { ...defaultConfig, ...userConfig };
-  const t = config.language === "en" ? en : pt;
-  return {
-    summary: "...",
-    detailed_results: []
-  };
-}
+import { GitHubActivityReport } from './types';
+import { Config } from './config';
+export { GitHubActivityReport, Config };
+
+import { generateGitStats } from './github-report';
+export { generateGitStats };

@@ -1,64 +1,70 @@
-import { en } from "./localization/en";
-import { pt } from "./localization/pt";
+import { LocalizationStrings } from './localization';
+import { InstallationResult } from './types';
 
-interface UserStats {
-  name: string;
-  totalCommits: number;
-  totalPRsOpened: number;
-  totalPRsClosed: number;
-  repoContributions: {
-    repoName: string;
-    commits: number;
-    prsOpened: number;
-    prsClosed: number;
-  }[];
-}
 
-interface RepoContributions { commits: number; prsOpened: number; prsClosed: number }
-
-export function generateReport(results: any[], language: "en" | "pt" = "pt") {
-  const t = language === "pt" ? pt : en;
-  const lines: string[] = [];
-
+/**
+ * Generates a formatted text report from the GitHub activity data
+ * 
+ * @param results The installation results to format
+ * @param t Localization strings to use for the report
+ * @returns A formatted string report
+ */
+export function generateReport(results: InstallationResult[], t: LocalizationStrings): string {
+  let reportLines = [];
+  
   for (const installation of results) {
-    if (installation.error) {
-      lines.push(t.errorInstall(installation.account, installation.error));
+    if ('error' in installation) {
+      reportLines.push(t.installationWarning(installation.account, installation.error));
       continue;
     }
-
-    const periodLabel = installation.period_days === 7 ? (language === "pt" ? "semana" : "week") :
-                        installation.period_days === 30 ? (language === "pt" ? "mês" : "month") :
-                        `${installation.period_days} ${language === "pt" ? "dias" : "days"}`;
-
-    lines.push(t.reportStart(installation.account, installation.account_type, periodLabel));
-
-    if (installation.userStats?.length) {
-    installation.userStats.sort((a: UserStats, b: UserStats) => {
-      const ta = a.totalCommits + a.totalPRsOpened + a.totalPRsClosed;
-      const tb = b.totalCommits + b.totalPRsOpened + b.totalPRsClosed;
-      return tb - ta;
-    });
-
+    
+    const periodLabel = installation.period_days === 7 ? t.period.week : 
+                       (installation.period_days === 30 ? t.period.month : 
+                       t.period.days(installation.period_days));
+    
+    reportLines.push(t.statsFor(
+      installation.account, 
+      installation.account_type, 
+      periodLabel
+    ));
+    
+    if (installation.userStats && installation.userStats.length > 0) {
+      installation.userStats.sort((a, b) => {
+        const totalA = a.totalCommits + a.totalPRsOpened + a.totalPRsClosed;
+        const totalB = b.totalCommits + b.totalPRsOpened + b.totalPRsClosed;
+        return totalB - totalA;
+      });
+      
       for (const user of installation.userStats) {
-        lines.push(`\n${t.reportUser(user.name)}`);
-        lines.push(t.reportUserStats(user.totalCommits, user.totalPRsOpened, user.totalPRsClosed));
-
-        user.repoContributions.sort((a: RepoContributions, b: RepoContributions) => {
-          const ta = a.commits + a.prsOpened + a.prsClosed;
-          const tb = b.commits + b.prsOpened + b.prsClosed;
-          return tb - ta;
+        reportLines.push(t.userStats(user.name));
+        reportLines.push(t.userTotal(
+          user.totalCommits, 
+          user.totalPRsOpened, 
+          user.totalPRsClosed
+        ));
+        
+        user.repoContributions.sort((a, b) => {
+          const totalA = a.commits + a.prsOpened + a.prsClosed;
+          const totalB = b.commits + b.prsOpened + b.prsClosed;
+          return totalB - totalA;
         });
-
+        
+        reportLines.push(t.contributionsByRepo);
         for (const repo of user.repoContributions) {
-          lines.push(t.reportRepoStats(repo.repoName, repo.commits, repo.prsOpened, repo.prsClosed));
+          reportLines.push(t.repoStats(
+            repo.repoName, 
+            repo.commits, 
+            repo.prsOpened, 
+            repo.prsClosed
+          ));
         }
       }
     } else {
-      lines.push(t.reportNone);
+      reportLines.push(t.noContributions);
     }
-
-    lines.push("");
+    
+    reportLines.push('');
   }
-
-  return lines.join("\n");
+  
+  return reportLines.join('\n');
 }
