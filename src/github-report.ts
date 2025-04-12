@@ -1,4 +1,3 @@
-import * as wmill from "windmill-client";
 import { App } from "octokit";
 import { 
   GitHubActivityReport,
@@ -144,7 +143,7 @@ export async function generateGitStats(
             
             console.log(t.repoCommits(repoName, processedCommits.size));
             
-            const sinceDateStr = cutoffDate.toISOString().slice(0, 10); // YYYY-MM-DD
+            const sinceDateStr = cutoffDate.toISOString().slice(0, 10);
             const prQuery = `
               query($searchQuery: String!) {
                 search(query: $searchQuery, type: ISSUE_ADVANCED, first: 100) {
@@ -227,14 +226,36 @@ export async function generateGitStats(
         
         const installationStats = {
           id: installation.id,
-          account: installation.account.login,
-          account_type: installation.account.type,
+          account: installation.account && 'login' in installation.account ? installation.account.login : "Unknown",
+          account_type: installation.account && 'type' in installation.account ? installation.account.type : "Unknown",
           period_days: daysToLookBack,
-          userStats: []
+          userStats: [] as {
+            name: string;
+            totalCommits: number;
+            totalPRsOpened: number;
+            totalPRsClosed: number;
+            repoContributions: {
+              repoName: string;
+              commits: number;
+              prsOpened: number;
+              prsClosed: number;
+            }[];
+          }[]
         };
         
         for (const [userName, stats] of Object.entries(userStats)) {
-          const userStat = {
+          const userStat: {
+            name: string;
+            totalCommits: number;
+            totalPRsOpened: number;
+            totalPRsClosed: number;
+            repoContributions: {
+              repoName: string;
+              commits: number;
+              prsOpened: number;
+              prsClosed: number;
+            }[];
+          } = {
             name: userName,
             totalCommits: stats.totalCommits,
             totalPRsOpened: stats.totalPRsOpened,
@@ -266,7 +287,7 @@ export async function generateGitStats(
         console.error(t.installationError(installation.id, error.message));
         results.push({
           id: installation.id,
-          account: installation.account.login,
+          account: installation.account && 'login' in installation.account ? installation.account.login : "Unknown",
           error: error.message
         });
       }
