@@ -17,10 +17,10 @@ A TypeScript/JavaScript library to generate detailed GitHub activity reports acr
 npm install github-activity-report
 ```
 
-Or with Yarn:
+Or with pnpm:
 
 ```bash
-yarn add github-activity-report
+pnpm add github-activity-report
 ```
 
 ## Usage
